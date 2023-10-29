@@ -1,86 +1,93 @@
-import re
-from datetime import datetime
-from birthdays import get_birthdays_per_week
+import json
+from datetime import datetime, timedelta
 
 class AddressBook:
     def __init__(self):
         self.records = []
+        self.load_data()
 
     def add_record(self, record):
         self.records.append(record)
-
-    def has_contact(self, name):
-        return any(record.name == name for record in self.records)
-
-    def get_phone(self, name):
-        for record in self.records:
-            if record.name == name:
-                return record.phone.number
-        return None
+        self.save_data()
 
     def change_phone(self, name, new_phone):
         for record in self.records:
             if record.name == name:
-                record.phone.number = new_phone
+                record.phone = new_phone
+        self.save_data()
+
+    def show_phone(self, name):
+        for record in self.records:
+            if record.name == name:
+                return record.phone
+        return None
+
+    def show_all(self):
+        return self.records
 
     def add_birthday(self, name, birthday):
         for record in self.records:
             if record.name == name:
-                record.birthday = Birthday(birthday)
+                record.birthday = birthday
+        self.save_data()
 
     def show_birthday(self, name):
         for record in self.records:
             if record.name == name:
-                return record.birthday.date if record.birthday else None
+                return record.birthday
         return None
 
-    def birthdays_next_week(self):
-        birthdays = {record.name: record.birthday.date for record in self.records if record.birthday}
-        return get_birthdays_per_week(birthdays)
+    def birthdays_per_week(self):
+        today = datetime.now().date()
+        upcoming_birthdays = []
+        for record in self.records:
+            if record.birthday:
+                bd_date = datetime.strptime(record.birthday, "%d.%m.%Y").date().replace(year=today.year)
+                if today <= bd_date < today + timedelta(days=7):
+                    upcoming_birthdays.append((record.name, record.birthday))
+        return upcoming_birthdays
 
-    def show_all(self):
-        return {record.name: record.phone.number for record in self.records}
+    def save_data(self):
+        data = [{"name": record.name, "phones": [record.phone], "birthday": record.birthday} for record in self.records]
+        with open('storage.json', 'w') as f:
+            json.dump(data, f)
+
+    def load_data(self):
+        try:
+            with open('storage.json', 'r') as f:
+                data = f.read()
+                if data:
+                    data = json.loads(data)
+                    for item in data:
+                        phones = [Phone(phone) for phone in item['phones']]
+                        birthday = Birthday(item['birthday']) if item['birthday'] else None
+                        record = Record(item['name'], phones[0] if phones else None, birthday)
+                        self.records.append(record)
+        except FileNotFoundError:
+            pass
+
 
 class Record:
-    def __init__(self, name):
+    def __init__(self, name, phone=None, birthday=None):
         self.name = name
-        self.phone = None
-        self.birthday = None
+        self.phone = phone
+        self.birthday = birthday
 
-    def add_phone(self, number):
-        self.phone = Phone(number)
+    def __str__(self):
+        return f"{self.name}, {self.phone}, {self.birthday}"
 
-    def add_birthday(self, date):
-        self.birthday = Birthday(date)
 
 class Phone:
-    def __init__(self, number):
-        self._number = None
-        self.number = number
+    def __init__(self, phone):
+        self.phone = phone
 
-    @property
-    def number(self):
-        return self._number
+    def __str__(self):
+        return self.phone
 
-    @number.setter
-    def number(self, value):
-        if re.match(r"^\d{10}$", value):
-            self._number = value
-        else:
-            raise ValueError("Phone number must contain exactly 10 digits.")
 
 class Birthday:
-    def __init__(self, date):
-        self._date = None
-        self.date = date
+    def __init__(self, birthday):
+        self.birthday = birthday
 
-    @property
-    def date(self):
-        return self._date.strftime('%d.%m.%Y')
-
-    @date.setter
-    def date(self, value):
-        try:
-            self._date = datetime.strptime(value, '%d.%m.%Y')
-        except ValueError:
-            raise ValueError("Date format must be DD.MM.YYYY")
+    def __str__(self):
+        return self.birthday
