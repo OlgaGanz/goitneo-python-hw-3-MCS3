@@ -1,100 +1,86 @@
-from collections import UserDict
 import re
-import datetime
+from datetime import datetime
+from birthdays import get_birthdays_per_week
 
-class Field:
-    def __init__(self, value):
-        self.value = value
+class AddressBook:
+    def __init__(self):
+        self.records = []
 
-class Name(Field):
-    pass
+    def add_record(self, record):
+        self.records.append(record)
 
-class Phone(Field):
-    def __init__(self, value=None):
-        if value and self.validate(value):
-            super().__init__(value)
-        else:
-            self.value = None
+    def has_contact(self, name):
+        return any(record.name == name for record in self.records)
 
-    @staticmethod
-    def validate(phone):
-        return bool(re.fullmatch(r"\d{10}", phone))
+    def get_phone(self, name):
+        for record in self.records:
+            if record.name == name:
+                return record.phone.number
+        return None
 
-class Birthday(Field):
-    def __init__(self, value=None):
-        if value and self.validate(value):
-            super().__init__(value)
-        else:
-            self.value = None
+    def change_phone(self, name, new_phone):
+        for record in self.records:
+            if record.name == name:
+                record.phone.number = new_phone
 
-    @staticmethod
-    def validate(value):
-        if re.match(r"^\d{2}\.\d{2}\.\d{4}$", value):
-            day, month, year = map(int, value.split('.'))
-            try:
-                datetime.date(year, month, day)
-                return True
-            except ValueError:
-                return False
-        return False
+    def add_birthday(self, name, birthday):
+        for record in self.records:
+            if record.name == name:
+                record.birthday = Birthday(birthday)
+
+    def show_birthday(self, name):
+        for record in self.records:
+            if record.name == name:
+                return record.birthday.date if record.birthday else None
+        return None
+
+    def birthdays_next_week(self):
+        birthdays = {record.name: record.birthday.date for record in self.records if record.birthday}
+        return get_birthdays_per_week(birthdays)
+
+    def show_all(self):
+        return {record.name: record.phone.number for record in self.records}
 
 class Record:
-    def __init__(self, name, phone=None, birthday=None):
-        self.name = Name(name)
-        self.phone = Phone(phone)
-        if birthday:
-            self.birthday = Birthday(birthday)
-    
-    def add_phone(self, phone):
-        self.phone = Phone(phone)
+    def __init__(self, name):
+        self.name = name
+        self.phone = None
+        self.birthday = None
+
+    def add_phone(self, number):
+        self.phone = Phone(number)
 
     def add_birthday(self, date):
         self.birthday = Birthday(date)
 
-    def show_birthday(self):
-        if hasattr(self, 'birthday'):
-            return self.birthday.value
-        return "No birthday set."
+class Phone:
+    def __init__(self, number):
+        self._number = None
+        self.number = number
 
-class AddressBook(UserDict):
+    @property
+    def number(self):
+        return self._number
 
-    def add_record(self, record):
-        self.data[record.name.value] = record
+    @number.setter
+    def number(self, value):
+        if re.match(r"^\d{10}$", value):
+            self._number = value
+        else:
+            raise ValueError("Phone number must contain exactly 10 digits.")
 
-    def find(self, name):
-        return self.data.get(name)
+class Birthday:
+    def __init__(self, date):
+        self._date = None
+        self.date = date
 
-    def birthdays_next_week(self):
-        birthdays_data = {}
-        for name, record in self.data.items():
-            if hasattr(record, 'birthday'):
-                birthdays_data[name] = record.birthday.value
-        return self.get_birthdays_per_week(birthdays_data)
+    @property
+    def date(self):
+        return self._date.strftime('%d.%m.%Y')
 
-    @staticmethod
-    def get_birthdays_per_week(birthdays):
-        today = datetime.datetime.now()
-        week_days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-        weekly_birthdays = {day: [] for day in week_days}
-
-        for name, date_str in birthdays.items():
-            birth_date = datetime.datetime.strptime(date_str, '%d.%m.%Y').replace(year=today.year)
-            
-            if birth_date < today:
-                birth_date = birth_date.replace(year=today.year + 1)
-            
-            day_of_week = week_days[birth_date.weekday()]
-            
-            if day_of_week == "Saturday" or day_of_week == "Sunday":
-                day_of_week = "Monday"
-            
-            weekly_birthdays[day_of_week].append(name)
-        
-        result = {}
-        for i in range(7):
-            current_day = week_days[(today.weekday() + i) % 7]
-            if weekly_birthdays[current_day]:
-                result[current_day] = ", ".join(weekly_birthdays[current_day])
-
-        return result
-
+    @date.setter
+    def date(self, value):
+        try:
+            self._date = datetime.strptime(value, '%d.%m.%Y')
+        except ValueError:
+            raise ValueError("Date format must be DD.MM.YYYY")
