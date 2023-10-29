@@ -1,67 +1,48 @@
-from address_book import AddressBook, Record, Phone, Birthday
+from address_book import AddressBook, Record
+
+def parse_input(user_input):
+    cmd, *args = user_input.split()
+    cmd = cmd.strip().lower()
+    return cmd, args
 
 def main():
     book = AddressBook()
-
+    print("Welcome to the assistant bot!")
     while True:
-        command = input("Enter command: ")
+        user_input = input("Enter a command: ")
+        command, args = parse_input(user_input)
 
-        if command in ['close', 'exit']:
+        if command in ["good bye", "close", "exit"]:
+            print("Good bye!")
             break
 
-        elif command == 'hello':
-            print("Hello!")
+        elif command == "hello":
+            print("How can I help you?")
 
-        elif command.startswith('add '):
-            _, name, number = command.split()
-            phone = Phone(number)
-            record = Record(name, phone)
+        elif command == "add" and len(args) == 2:
+            record = Record(args[0], args[1])
             book.add_record(record)
+            print("Contact added.")
 
-        elif command.startswith('change '):
-            _, name, number = command.split()
-            phone = Phone(number)
-            record = book.find_record(name)
-            if record:
-                record.update_phone(phone)
+        elif command == "change" and len(args) == 2:
+            updated = book.change_phone(args[0], args[1])
+            if updated:
+                print("Contact updated.")
             else:
-                print(f"No contact named {name} found")
+                print(f"No contact named {args[0]} found.")
 
-        elif command.startswith('phone '):
-            _, name = command.split()
-            record = book.find_record(name)
-            if record:
-                print(record.phones[0])
+        elif command == "phone" and len(args) == 1:
+            phone = book.find_phone(args[0])
+            if phone:
+                print(phone)
             else:
-                print(f"No contact named {name} found")
+                print(f"No contact named {args[0]} found.")
 
-        elif command == 'all':
-            for record in book.records:
-                print(record.name, record.phones[0])
-
-        elif command.startswith('add-birthday '):
-            _, name, date = command.split()
-            birthday = Birthday(date)
-            record = book.find_record(name)
-            if record:
-                record.birthday = birthday
-            else:
-                print(f"No contact named {name} found")
-
-        elif command.startswith('show-birthday '):
-            _, name = command.split()
-            record = book.find_record(name)
-            if record and record.birthday:
-                print(record.birthday.date)
-            else:
-                print(f"No birthday for {name} found")
-
-        elif command == 'birthdays':
-            birthdays = book.get_birthdays_per_week()
-            for day, names in birthdays.items():
-                print(f"{day}: {names}")
+        elif command == "all":
+            print(book.show_all_records())
 
         else:
-            print("Unknown command")
+            print("Invalid command.")
 
-main()
+if __name__ == "__main__":
+    main()
