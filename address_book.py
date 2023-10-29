@@ -1,5 +1,5 @@
 from collections import UserDict
-from datetime import datetime
+from datetime import datetime, timedelta
 
 class Field:
     def __init__(self, value):
@@ -21,18 +21,18 @@ class Phone(Field):
     def validate(value):
         return len(value) == 10 and value.isdigit()
 
-class Date(Field):
-    def __init__(self, value):
-        if not self.validate(value):
-            raise ValueError("Date must be in the format DD.MM.YYYY.")
-        super().__init__(value)
+class Birthday(Field):
+    def __init__(self, date_str):
+        if not self.validate(date_str):
+            raise ValueError("Date format must be DD.MM.YYYY")
+        super().__init__(datetime.strptime(date_str, "%d.%m.%Y"))
 
     @staticmethod
-    def validate(value):
+    def validate(date_str):
         try:
-            datetime.strptime(value, '%d.%m.%Y')
+            datetime.strptime(date_str, "%d.%m.%Y")
             return True
-        except ValueError:
+        except:
             return False
 
 class Record:
@@ -52,14 +52,8 @@ class Record:
             if phone.value == old_phone:
                 self.phones[idx] = Phone(new_phone)
 
-    def find_phone(self, phone):
-        for p in self.phones:
-            if p.value == phone:
-                return p
-        return None
-
-    def set_birthday(self, date):
-        self.birthday = Date(date)
+    def add_birthday(self, date):
+        self.birthday = Birthday(date)
 
     def __str__(self):
         return f"Contact name: {self.name.value}, phones: {'; '.join(p.value for p in self.phones)}"
@@ -74,3 +68,9 @@ class AddressBook(UserDict):
     def delete(self, name):
         if name in self.data:
             del self.data[name]
+
+    def birthdays_for_next_week(self):
+        today = datetime.now()
+        upcoming_week = [(today + timedelta(days=i)).date() for i in range(7)]
+        upcoming_birthdays = [(name, record.birthday.value.date()) for name, record in self.data.items() if record.birthday and record.birthday.value.date() in upcoming_week]
+        return upcoming_birthdays
