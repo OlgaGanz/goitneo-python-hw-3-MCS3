@@ -1,96 +1,84 @@
-from address_book import AddressBook, Phone, Record
-from birthdays import Birthday
+import pickle
+from address_book import AddressBook, Record, Phone, Birthday
+from birthdays import get_birthdays_per_week
 
-book = AddressBook()
+def save_to_disk(book, filename='address_book.pkl'):
+    with open(filename, 'wb') as file:
+        pickle.dump(book, file)
 
-def input_error(func):
-    def inner(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except (ValueError, KeyError, IndexError):
-            return "Invalid input. Please check and try again."
-    return inner
-
-@input_error
-def add_contact(args):
-    name, phone = args.split()
-    book.add_record(name, phone)
-    return "Contact added."
-
-@input_error
-def change_contact(args):
-    name, phone = args.split()
-    if name in book.data:
-        book.data[name].phones = [Phone(phone)]
-        return f"Phone for {name} changed."
-    return "Contact not found."
-
-@input_error
-def phone(args):
-    name = args.strip()
-    if name in book.data:
-        return ", ".join([p.phone for p in book.data[name].phones])
-    return "Contact not found."
-
-@input_error
-def all_contacts(args):
-    return "\n".join([f"{name}: {', '.join([p.phone for p in record.phones])}" for name, record in book.data.items()])
-
-@input_error
-def add_birthday(args):
-    name, date = args.split()
-    if name in book.data:
-        book.data[name].add_birthday(Birthday(date))
-        return f"Birthday added for {name}."
-    return "Contact not found."
-
-@input_error
-def show_birthday(args):
-    name = args.strip()
-    if name in book.data and book.data[name].birthday:
-        return str(book.data[name].birthday.birthday.date())
-    return "Birthday not found for this contact."
-
-def birthdays(args):
-    upcoming = book.get_birthdays_per_week()
-    if upcoming:
-        return "\n".join([f"{name} has a birthday in {days} days" for name, days in upcoming.items()])
-    return "No birthdays in the upcoming week."
-
-def hello(args):
-    return "Hello! How can I assist you?"
-
-def close(args):
-    book.save_to_file()
-    exit()
+def load_from_disk(filename='address_book.pkl'):
+    try:
+        with open(filename, 'rb') as file:
+            return pickle.load(file)
+    except FileNotFoundError:
+        return AddressBook()
 
 def main():
-    command_dict = {
-        'add': add_contact,
-        'change': change_contact,
-        'phone': phone,
-        'all': all_contacts,
-        'add-birthday': add_birthday,
-        'show-birthday': show_birthday,
-        'birthdays': birthdays,
-        'hello': hello,
-        'close': close,
-        'exit': close
-    }
-
-    try:
-        book = AddressBook.load_from_file()
-    except:
-        book = AddressBook()
+    book = load_from_disk()
 
     while True:
-        user_input = input("Enter command: ").strip()
-        command, *args = user_input.split(' ', 1)
-        args = args[0] if args else ''
-        if command in command_dict:
-            print(command_dict[command](args))
-        else:
-            print("Unknown command")
+        try:
+            command_input = input("Enter command: ").strip().lower()
+            command_parts = command_input.split()
+
+            if not command_parts:
+                print("Please enter a command.")
+                continue
+
+            command = command_parts[0]
+
+            if command == "add":
+                name = command_parts[1]
+                phone_number = command_parts[2]
+                book.add_record(Record(name, Phone(phone_number)))
+                print(f"Added {name} with phone number {phone_number}.")
+
+            elif command == "change":
+                name = command_parts[1]
+                new_phone_number = command_parts[2]
+                book.change_phone(name, new_phone_number)
+                print(f"Phone number for {name} has been updated.")
+
+            elif command == "phone":
+                name = command_parts[1]
+                phone_number = book.find_phone(name)
+                print(f"Phone number for {name}: {phone_number}.")
+
+            elif command == "all":
+                records = book.show_all_records()
+                for record in records:
+                    print(record)
+
+            elif command == "add-birthday":
+                name = command_parts[1]
+                birth_date = command_parts[2]
+                book.add_birthday(name, Birthday(birth_date))
+                print(f"Birthday for {name} added.")
+
+            elif command == "show-birthday":
+                name = command_parts[1]
+                birthday = book.show_birthday(name)
+                print(f"Birthday for {name}: {birthday}.")
+
+            elif command == "birthdays":
+                birthdays = book.collect_birthdays()
+                results = get_birthdays_per_week(birthdays)
+                for day, names in results.items():
+                    print(f"{day}: {names}")
+
+            elif command == "hello":
+                print("Hello! How can I assist you today?")
+
+            elif command in ["close", "exit"]:
+                save_to_disk(book)
+                print("Goodbye!")
+                break
+
+            else:
+                print("Unknown command. Please try again.")
+
+        except (ValueError, IndexError) as e:
+            print(e)
 
 if __name__ == "__main__":
     main()
